@@ -8,7 +8,7 @@ var sys = require('sys'),
 try {
   var configJSON = fs.readFileSync(__dirname + "/config/app.json");
 } catch(e) {
-  sys.log("File config/app.json not found.");
+  sys.log("File config/app.json not found. Try: `cp config/app.json.sample config/app.json`");
 }
 var config = JSON.parse(configJSON.toString());
   
@@ -24,12 +24,12 @@ function process_cm_response(websocket, xml) {
         var openCount = s.NumberOfOpens;
         if (!opens[email]) {
           opens[email] = openCount;
-          output += '<p>' + opens[email] + ' new opens from ' + email + '</p>';
+          output += '<p>' + opens[email] + ' new open' + (opens[email] != 1 ? 's' : '') + ' from ' + email + '</p>';
         } else {
           if (opens[email] != openCount) {
             var newOpens = openCount - opens[email];
             opens[email] = openCount;
-            output += '<p>' + newOpens + ' new opens from ' + email + '</p>';
+            output += '<p>' + newOpens + ' new open' + (newOpens != 1 ? 's' : '') + ' from ' + email + '</p>';
           }
         }
       });
