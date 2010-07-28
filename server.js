@@ -25,16 +25,14 @@ function process_cm_response(websocket, xml) {
         if (!opens[email]) {
           opens[email] = openCount;
           output += '<p>' + opens[email] + ' new open' + (opens[email] != 1 ? 's' : '') + ' from ' + email + '</p>';
-        } else {
-          if (opens[email] != openCount) {
+        } else  if (opens[email] != openCount) {
             var newOpens = openCount - opens[email];
             opens[email] = openCount;
             output += '<p>' + newOpens + ' new open' + (newOpens != 1 ? 's' : '') + ' from ' + email + '</p>';
-          }
         }
       });
     }
-    if (output === '') { output = '...'; }
+    if (output === '') { output = '.'; }
     websocket.write(output);
   });
   parser.parseString(xml); 
