@@ -3,7 +3,11 @@ var sys = require('sys'),
   http = require('http'),
   ws = require('./lib/ws'),
   xml2js = require('./lib/xml2js'),
-  opens = []; // open count indexed by email address
+  opens = 0,
+  uniqueOpens = 0,
+  clicks = 0,
+  unsubscribes = 0,
+  bounces = 0;
 
 try {
   var configJSON = fs.readFileSync(__dirname + "/config/app.json");
@@ -16,23 +20,39 @@ function process_cm_response(websocket, xml) {
   var parser = new xml2js.Parser();
   parser.addListener('end', function(result) {
     sys.debug(sys.inspect(result));
-    var output = '';
-    var subs = result.SubscriberOpen;
-    if (subs) {
-      subs.forEach(function(s) {
-        var email = s.EmailAddress;
-        var openCount = s.NumberOfOpens;
-        if (!opens[email]) {
-          opens[email] = openCount;
-          output += '<p>' + opens[email] + ' new open' + (opens[email] != 1 ? 's' : '') + ' from ' + email + '</p>';
-        } else  if (opens[email] != openCount) {
-            var newOpens = openCount - opens[email];
-            opens[email] = openCount;
-            output += '<p>' + newOpens + ' new open' + (newOpens != 1 ? 's' : '') + ' from ' + email + '</p>';
-        }
-      });
+    var output = '<p>';
+    var _opens = result.TotalOpened;
+    var _uniqueOpens = result.UniqueOpened;
+    var _clicks = result.Clicks;
+    var _unsubscribes = result.Unsubscribed;
+    var _bounces = result.Bounced;
+    if (_opens && _uniqueOpens && _clicks && _unsubscribes && _bounces) {
+      if (opens != _opens) {
+        output += (_opens - opens) + ' new open' + ((_opens - opens) != 1 ? 's' : '') + ' ';
+        opens = _opens;
+      }
+      if (uniqueOpens != _uniqueOpens) {
+        output += (_uniqueOpens - uniqueOpens) + ' new unique open' + ((_uniqueOpens - uniqueOpens) != 1 ? 's' : '') + ' ';
+        uniqueOpens = _uniqueOpens;
+      }
+      if (clicks != _clicks) {
+        output += (_clicks - clicks) + ' new click' + ((_clicks - clicks) != 1 ? 's' : '') + ' ';
+        clicks = _clicks;
+      }
+      if (unsubscribes != _unsubscribes) {
+        output += (_unsubscribes - unsubscribes) + ' new unsubscribe' + ((_unsubscribes - unsubscribes) != 1 ? 's' : '') + ' ';
+        unsubscribes = _unsubscribes;
+      }
+      if (bounces != _bounces) {
+        output += (_bounces - bounces) + ' new bounce' + ((_bounces - bounces) != 1 ? 's' : '') + ' ';
+        bounces = _bounces;
+      }
+      if (output === '<p>') {
+        output = '.'; 
+      } else {
+        output += '</p>';
+      }
     }
-    if (output === '') { output = '.'; }
     websocket.write(output);
   });
   parser.parseString(xml); 
@@ -42,10 +62,10 @@ ws.createServer(function(websocket) {
   websocket.addListener('connect', function(response) {
     sys.debug('connect: ' + response);
 
-    // Server polls Campaign Monitor API for a campaign's opens
+    // Server polls Campaign Monitor API for a campaign's summary
     setInterval(function() {
       var cm = http.createClient(80, 'api.createsend.com');
-      var request = cm.request('GET', '/api/api.asmx/Campaign.GetOpens?ApiKey=' + 
+      var request = cm.request('GET', '/api/api.asmx/Campaign.GetSummary?ApiKey=' + 
         config.api_key + '&CampaignID=' + config.campaign_id, {'host': 'api.createsend.com'});
       request.end();
       request.addListener('response', function (response) {
