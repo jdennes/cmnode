@@ -8,16 +8,25 @@
   </head>
   <body>
     <h3>Monitoring a campaign in realtime...</h3>
-    <div id="content" style="width: 100%; height: 100%;"></div>
+    <h4 id="campaign"></h4>
+    <div>Opens: <span id="opens"></span> Unique Opens: <span id="uniqueopens"></span> 
+      Clicks: <span id="clicks"></span> Unsubscribes: <span id="unsubscribes"></span> Bounces: <span id="bounces"></span></div>
+    <div id="new" style="width: 100%; height: 100%;"></div>
     <script type="text/javascript">
-      //<![CDATA[        
+      //<![CDATA[
       $(document).ready(function() {
         var ws;
         function openSocket() {
           ws = new WebSocket("ws://127.0.0.1:8000/");
           ws.onmessage = function(evt) { 
-            var data = evt.data;
-            $("#content").append(data);
+            var data = JSON.parse(evt.data);
+            $("#new").append(data.New);
+            $("h4#campaign").html("Campaign: " + data.CampaignName);
+            $("span#opens").html(data.Opens);
+            $("span#uniqueopens").html(data.UniqueOpens);
+            $("span#clicks").html(data.Clicks);
+            $("span#unsubscribes").html(data.Unsubscribes);
+            $("span#bounces").html(data.Bounces);
           };
           ws.onclose = function() {};
           ws.onopen = function() {};

@@ -12,11 +12,42 @@ var sys = require('sys'),
 try {
   var configJSON = fs.readFileSync(__dirname + "/config/app.json");
 } catch(e) {
-  sys.log("File config/app.json not found. Try: `cp config/app.json.sample config/app.json`");
+  sys.log("File config/app.json not found. Try: `cp config/app.json.example config/app.json`");
 }
 var config = JSON.parse(configJSON.toString());
+
+var campaign = null;
+
+function getCampaign() {
+  // Finds the campaign from a list of the client's campaigns using 
+  // the Campaign Monitor API
+  var data = '';
+  var cm = http.createClient(80, 'api.createsend.com');
+  var request = cm.request('GET', '/api/api.asmx/Client.GetCampaigns?ApiKey=' + 
+    config.api_key + '&ClientID=' + config.client_id, {'host': 'api.createsend.com'});
+  request.end();
+  request.addListener('response', function (response) {
+    response.setEncoding('utf8');
+    response.addListener('data', function (chunk) {
+      data += chunk;
+    });
+    response.addListener('end', function() {
+      var parser = new xml2js.Parser();
+      parser.addListener('end', function(result) {
+        if (result.Campaign) {
+          result.Campaign.forEach(function(v) {
+            if (v.CampaignID == config.campaign_id) {
+              campaign = v;
+            }
+          });
+        }
+      });
+      parser.parseString(data);
+    });
+  });
+}
   
-function process_cm_response(websocket, xml) {
+function processCMResponse(websocket, xml) {
   var parser = new xml2js.Parser();
   parser.addListener('end', function(result) {
     sys.debug(sys.inspect(result));
@@ -53,28 +84,42 @@ function process_cm_response(websocket, xml) {
         output += '</p>';
       }
     }
-    websocket.write(output);
+    var jsonResponse = {
+      CampaignName: campaign.Name,
+      Opens: opens,
+      UniqueOpens: uniqueOpens,
+      Clicks: clicks,
+      Unsubscribes: unsubscribes,
+      Bounces: bounces,
+      New: output
+    };
+    sys.debug(JSON.stringify(jsonResponse));
+    websocket.write(JSON.stringify(jsonResponse));
   });
   parser.parseString(xml); 
 }
 
 ws.createServer(function(websocket) {
+  if (!campaign) { getCampaign(); }
+
   websocket.addListener('connect', function(response) {
     sys.debug('connect: ' + response);
 
     // Server polls Campaign Monitor API for a campaign's summary
     setInterval(function() {
+      var data = '';
       var cm = http.createClient(80, 'api.createsend.com');
       var request = cm.request('GET', '/api/api.asmx/Campaign.GetSummary?ApiKey=' + 
         config.api_key + '&CampaignID=' + config.campaign_id, {'host': 'api.createsend.com'});
       request.end();
       request.addListener('response', function (response) {
-        sys.debug('STATUS: ' + response.statusCode);
-        sys.debug('HEADERS: ' + JSON.stringify(response.headers));
         response.setEncoding('utf8');
-        response.addListener('data', function (data) {
-          sys.debug('BODY: \n' + data);
-          process_cm_response(websocket, data);
+        response.addListener('data', function (chunk) {
+          data += chunk;
+        });
+        response.addListener('end', function() {
+          //sys.debug('Response body: \n' + data);
+          processCMResponse(websocket, data);
         });
       });
     }, 2000);

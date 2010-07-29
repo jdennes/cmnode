@@ -1,4 +1,5 @@
 {
   "api_key" : "xxxxxxxxxx",
+  "client_id" : "xxxxxxxxxx",
   "campaign_id" : "xxxxxxxxxx"
 }
