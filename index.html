@@ -4,17 +4,8 @@
   <head>
     <title>cmnode</title>
     <style type="text/css">body { font-family: Georgia; }</style>
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
-  </head>
-  <body>
-    <h3>Monitoring a campaign in realtime...</h3>
-    <h4 id="campaign"></h4>
-    <div>Total Opens: <span id="opens"></span> Unique Opens: <span id="uniqueopens"></span> 
-      Clicks: <span id="clicks"></span> Unsubscribes: <span id="unsubscribes"></span> Bounces: <span id="bounces"></span></div>
-    <div>-------------------</div>
-    <div id="messages" style="width: 100%; height: 100%;"></div>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js" type="text/javascript"></script>
     <script type="text/javascript">
-      //<![CDATA[
       $(document).ready(function() {
         var ws;
         function openSocket() {
@@ -23,18 +14,18 @@
             var data = JSON.parse(evt.data);
             $("#messages").prepend("<div>" + data.Message + "</div>");
             $("h4#campaign").html("Campaign: " + data.CampaignName + " (" + data.CampaignSubject + ")");
-            $("span#opens").html(data.Opens);
-            $("span#uniqueopens").html(data.UniqueOpens);
-            $("span#clicks").html(data.Clicks);
-            $("span#unsubscribes").html(data.Unsubscribes);
-            $("span#bounces").html(data.Bounces);
           };
           ws.onclose = function() {};
           ws.onopen = function() {};
         }
         openSocket();
       });
-      //]]>
-</script>
+    </script>
+  </head>
+  <body>
+    <h3>Monitoring a campaign in realtime...</h3>
+    <h4 id="campaign"></h4>
+    <div>-------------------</div>
+    <div id="messages" style="width: 100%; height: 100%;"></div>
   </body>
 </html>

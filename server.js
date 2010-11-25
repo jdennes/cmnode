@@ -2,14 +2,8 @@ var sys = require('sys'),
   fs = require('fs'),
   http = require('http'),
   ws = require('./lib/ws'),
-  xml2js = require('./lib/xml2js'),
   campaign = null,
-  opens = 0,
-  uniqueOpens = 0,
-  clicks = 0,
-  unsubscribes = 0,
-  bounces = 0,
-  output_queue = [];
+  opens = {};
 
 try {
   var configJSON = fs.readFileSync(__dirname + "/config/app.json");
@@ -23,8 +17,8 @@ function getCampaign() {
   // the Campaign Monitor API
   var data = '';
   var cm = http.createClient(80, 'api.createsend.com');
-  var request = cm.request('GET', '/api/api.asmx/Client.GetCampaigns?ApiKey=' + 
-    config.api_key + '&ClientID=' + config.client_id, {'host': 'api.createsend.com'});
+  var request = cm.request('GET', '/api/v3/clients/' + config.client_id + '/campaigns.json',
+    { 'host': 'api.createsend.com', 'Authorization': 'Basic ' + new Buffer(config.api_key + ':x').toString('base64') });
   request.end();
   request.addListener('response', function (response) {
     response.setEncoding('utf8');
@@ -32,81 +26,55 @@ function getCampaign() {
       data += chunk;
     });
     response.addListener('end', function() {
-      var parser = new xml2js.Parser();
-      parser.addListener('end', function(result) {
-        if (result.Campaign) {
-          result.Campaign.forEach(function(v) {
-            if (v.CampaignID == config.campaign_id) {
-              campaign = v;
-            }
-          });
-        }
+      var campaigns = JSON.parse(data);
+      campaigns.forEach(function(c) {
+        if (c.CampaignID == config.campaign_id) { campaign = c; }
       });
-      parser.parseString(data);
     });
   });
 }
 
-function processCMResponse(websocket, xml) {
-  var parser = new xml2js.Parser();
-  parser.addListener('end', function(result) {
-    var output = '';
-    var _opens = result.TotalOpened;
-    var _uniqueOpens = result.UniqueOpened;
-    var _clicks = result.Clicks;
-    var _unsubscribes = result.Unsubscribed;
-    var _bounces = result.Bounced;
-    if (_opens && _uniqueOpens && _clicks && _unsubscribes && _bounces) {
-      if (opens != _opens) {
-        output += (_opens - opens) + ' new open' + ((_opens - opens) != 1 ? 's' : '') + '; ';
-        opens = _opens;
-      }
-      if (uniqueOpens != _uniqueOpens) {
-        output += (_uniqueOpens - uniqueOpens) + ' new unique open' + ((_uniqueOpens - uniqueOpens) != 1 ? 's' : '') + '; ';
-        uniqueOpens = _uniqueOpens;
-      }
-      if (clicks != _clicks) {
-        output += (_clicks - clicks) + ' new click' + ((_clicks - clicks) != 1 ? 's' : '') + ' ';
-        clicks = _clicks;
-      }
-      if (unsubscribes != _unsubscribes) {
-        output += (_unsubscribes - unsubscribes) + ' new unsubscribe' + ((_unsubscribes - unsubscribes) != 1 ? 's' : '') + '; ';
-        unsubscribes = _unsubscribes;
-      }
-      if (bounces != _bounces) {
-        output += (_bounces - bounces) + ' new bounce' + ((_bounces - bounces) != 1 ? 's' : '') + '; ';
-        bounces = _bounces;
-      }
-    }
-    if (output != '') {
-      var jsonResponse = {
-        CampaignName: campaign.Name,
-        CampaignSubject: campaign.Subject,
-        Opens: opens,
-        UniqueOpens: uniqueOpens,
-        Clicks: clicks,
-        Unsubscribes: unsubscribes,
-        Bounces: bounces,
-        Message: output
-      };
-      sys.debug(JSON.stringify(jsonResponse));
-      websocket.write(JSON.stringify(jsonResponse));
+function processCMResponse(websocket, data) {
+  // Grab the most recent 100 opens
+  var _raw_opens = JSON.parse(data).Results;
+  var _new_opens = {};
+
+  _raw_opens.forEach(function(o) {
+    key = o.EmailAddress + o.Date;
+    if (!(key in opens)) {
+      opens[key] = o;
+      _new_opens[key] = o;
     }
   });
-  parser.parseString(xml); 
+  
+  var output = '';
+  for (var k in _new_opens) {
+    v = _new_opens[k];
+    output += 'Open by ' + v.EmailAddress + ' at ' + v.Date + ' (ip: ' + v.IPAddress + ')<br />';
+  }
+
+  if (output != '') {
+    var jsonResponse = {
+      CampaignName: campaign.Name,
+      CampaignSubject: campaign.Subject,
+      Message: output
+    };
+    websocket.write(JSON.stringify(jsonResponse));
+  }
 }
 
 ws.createServer(function(websocket) {
   if (!campaign) {
     getCampaign();
   }
+
   // Server polls Campaign Monitor API for a campaign's summary
   setInterval(function() {
     var data = '';
     try {
       var cm = http.createClient(80, 'api.createsend.com');
-      var request = cm.request('GET', '/api/api.asmx/Campaign.GetSummary?ApiKey=' + 
-        config.api_key + '&CampaignID=' + config.campaign_id, {'host': 'api.createsend.com'});
+      var request = cm.request('GET', '/api/v3/campaigns/' + config.campaign_id + '/opens.json?date=2010-01-01&pagesize=100&orderfield=date&orderdirection=desc',
+        { 'host': 'api.createsend.com', 'Authorization': 'Basic ' + new Buffer(config.api_key + ':x').toString('base64') });
       request.end();
       request.addListener('response', function (response) {
         response.setEncoding('utf8');
@@ -121,7 +89,7 @@ ws.createServer(function(websocket) {
       // If we can't make the call, just wait until we can
       sys.log("Failed to connect to Campaign Monitor API.");
     }
-  }, 2000);
+  }, 5000);
   
   websocket.addListener('connect', function(response) {
     sys.debug('connect: ' + response);
@@ -130,4 +98,5 @@ ws.createServer(function(websocket) {
   }).addListener('close', function() {
     sys.debug('close');
   });
+
 }).listen(8000);
