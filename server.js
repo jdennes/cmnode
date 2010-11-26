@@ -47,8 +47,10 @@ function processCMResponse(websocket, data) {
       if (!(key in opens)) {
         var con = new geoip.Connection(dbpath, function(con) {
           con.query(o.IPAddress, function(result) {
-            o.latitude = result.latitude;
-            o.longitude = result.longitude;
+            if (result) {
+              o.latitude = result.latitude;
+              o.longitude = result.longitude;
+            }
             con.close();
           });
         });

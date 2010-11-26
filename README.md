@@ -1,13 +1,14 @@
 cmnode
 ======
 
-An experiment with node.js and WebSockets and how they could be used for cool things with the Campaign Monitor API.
+An experiment with node.js, WebSockets, GeoIP, and the Campaign Monitor API and how this combination be used for cool things.
 
 Requirements
 ------------
 
- * node.js v0.1.96
- * A browser which supports WebSockets
+ * node.js v0.2.5
+ * node-geoip - https://github.com/strange/node-geoip/
+ * A browser which supports WebSockets (e.g. Google Chrome)
 
 Installation
 --------------
