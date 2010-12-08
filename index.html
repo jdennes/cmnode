@@ -12,28 +12,31 @@
         var cent = new google.maps.LatLng(-25.363882,131.044922);
         var opts = { zoom: 2, center: cent, mapTypeId: google.maps.MapTypeId.ROADMAP }
         var map = new google.maps.Map(document.getElementById("map_canvas"), opts);
-        
         var ws;
+        function dropMarker(o, marker) {
+          var iw = new google.maps.InfoWindow({
+              content: o.EmailAddress + ' opened your email!'
+          });
+          google.maps.event.addListener(marker, 'click', function() {
+            iw.open(map, marker);
+          });
+          iw.open(map, marker);
+          setTimeout(function() { iw.close(); }, 3000);
+        }
         function openSocket() {
-          ws = new WebSocket("ws://127.0.0.1:8000/");
+          ws = new WebSocket("ws://192.168.126.17:8000/");
           ws.onmessage = function(evt) { 
             var data = JSON.parse(evt.data);
             $("h4#campaign").html("Campaign: " + data.CampaignName + " (" + data.CampaignSubject + ")");
-            for (var open in data.NewOpens) {
+            for (open in data.NewOpens) {
               var o = data.NewOpens[open];
               $("#messages").prepend("<div>" + o.EmailAddress + " opened your email...</div>");
-              var ll = new google.maps.LatLng(o.latitude, o.longitude);
-              var iw = new google.maps.InfoWindow({
-                  content: o.EmailAddress + ' opened your email!'
-              });
               var marker = new google.maps.Marker({
-                  position: ll,
+                  position: new google.maps.LatLng(o.latitude, o.longitude),
                   map: map,
                   title: 'Open: ' + o.EmailAddress
               });
-              google.maps.event.addListener(marker, 'click', function() {
-                iw.open(map, marker);
-              });
+              dropMarker(o, marker);
             };
           };
           ws.onclose = function() {};
