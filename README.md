@@ -3,6 +3,8 @@ cmnode
 
 An experiment with node.js, WebSockets, GeoIP, and the Campaign Monitor API and how this combination be used for cool things.
 
+**Update:** This little project was the inspiration for what became [Campaign Monitor Worldview](http://www.campaignmonitor.com/worldview/ "Campaign Monitor Worldview")
+
 Requirements
 ------------
 
@@ -26,4 +28,8 @@ To start the server (runs on port 8000), run:
 
     node server.js
 
-Then open index.html to connect to the server.
+Then open index.html to connect to the server. If people like your campaign, you should see something like this:
+
+![cmnode in action](http://farm6.static.flickr.com/5130/5221794697_f1317c14d0_z.jpg)
+
+Have fun!
